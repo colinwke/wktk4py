@@ -1,10 +1,8 @@
 """
-wktk
-wangke tool kits
+wktk: wangke tool kits
 2017-5-5
 """
 from time import time, ctime, strftime, localtime
-from winsound import PlaySound, SND_ALIAS
 
 import pickle
 import multiprocessing as mp
@@ -14,10 +12,12 @@ import pandas as pd
 
 import math
 
-from os.path import exists
+from os.path import exists, isfile, isdir, dirname
 from os import makedirs
 
 import logging
+
+import matplotlib.pyplot as plt
 
 
 # ==========================================================
@@ -39,17 +39,12 @@ class Timestamp(object):
         print("Timestamp cut: %s, %.2fs" % (ctime(), run_time))
         if info is not None: print(info)
 
-    def end(self, sound=False):
+    def end(self):
         run_time = time() - self._start
         print("Timestamp end: %s, %.2fs" % (ctime(), run_time))
-        try:
-            if sound:
-                PlaySound('SystemQuestion', SND_ALIAS)
-        except RuntimeError:
-            print('RuntimeError: Faild to play sound!')
 
-    def exit(self, info=None, sound=False):
-        self.end(sound)
+    def exit(self, info=None):
+        self.end()
 
         if info is not None: print(info)
         exit(1015)
@@ -72,8 +67,7 @@ class PdPrinter:
                 'display.max_rows', max_rows,
                 'display.max_columns', None,
                 'display.expand_frame_repr', False,
-                'display.max_colwidth', max_colwidth
-        ):
+                'display.max_colwidth', max_colwidth):
             return content + str(df)
 
     @staticmethod
@@ -180,7 +174,9 @@ class MultiProcess:
         return ret_list
 
     @staticmethod
-    def map(func, pipe, args={}):
+    def map(func, pipe, args=None):
+        if args is None:
+            args = {}
         n_cpu = min(len(pipe), mp.cpu_count() - 1)
         with mp.Pool(n_cpu) as pool:
             if len(args) == 0:
@@ -205,7 +201,6 @@ class MultiProcess:
         return ret_list
 
     # other helper for mp
-
     @staticmethod
     def split_table(data, num=0):
         if num == 0:
@@ -230,9 +225,8 @@ class LengthCounter(object):
             self.len_pre = x
         else:
             self.len_pre = len(x)
-
         print('=== LengthCounter %s ===' % info)
-        print('LengthCounter: init (count: %d, ratio: %.4f)' % self.len_pre)
+        print('LengthCounter: init (count: %d)' % self.len_pre)
 
     def count(self, x, info=None):
         if info is not None:
@@ -243,7 +237,6 @@ class LengthCounter(object):
         else:
             len_tmp = len(x)
 
-        # print('LengthCounter: changed: %+d, remain: %d' % (len_tmp - self.len_pre, len_tmp))
         print('LengthCounter: (%d %+d) = %d' % (self.len_pre, len_tmp - self.len_pre, len_tmp))
         self.len_pre = len_tmp
 
@@ -327,6 +320,30 @@ class Path(object):
 
 
 # ==========================================================
+
+class Txt():
+    def __init__(self):
+        self.txt = ''
+
+    def append(self, txt):
+        print(txt)
+        self.txt += txt
+
+    def save(self, path):
+        with open(path, 'w') as f:
+            f.write(self.txt)
+
+    @staticmethod
+    def write(txt, path):
+        with open(path, 'w') as f:
+            f.write(txt)
+
+    @staticmethod
+    def read(path):
+        with open(path, 'r') as f:
+            return f.read()
+
+
 # ==========================================================
 
 class UnsortTool:
@@ -344,15 +361,10 @@ class UnsortTool:
         exit(1015)
 
     @staticmethod
-    def get_time(with_year=False):
-        if with_year:
-            time_format = '%Y%m%d%H%M%S'
-        else:
-            time_format = '%m%d%H%M%S'
-
-        current_time = strftime(time_format, localtime(time()))  # "%Y%m%d%H%M%S"
-
-        return current_time
+    def get_current_time(simple=True):
+        """get current time."""
+        time_format = "%m%d%H%M%S" if simple else "%Y-%m-%d %H:%M:%S"
+        return strftime(time_format, localtime())
 
     @staticmethod
     def drop_duplicates(values):
@@ -385,7 +397,7 @@ class UnsortTool:
         value_set = set(values)
         colors = plt.cm.get_cmap('Spectral')(np.linspace(0, 1, len(value_set)))
         colors = {k: v for k, v in zip(value_set, colors)}
-        colors = [colors[i] for i in labels]
+        colors = [colors[i] for i in values]
 
         return colors
 
@@ -421,11 +433,74 @@ class PdUtils():
 
 # ==========================================================
 
-class FileUtils():
+class FileUtils:
     @staticmethod
-    def create_if_not_exist(directory):
-        if not exists(directory):
-            makedirs(directory)
+    def create_if_not_exist_dir(path):
+        """https://stackoverflow.com/a/12517490/6494418"""
+        makedirs(dirname(path), exist_ok=True)
+
 
 # ==========================================================
+# update from 58 ctr/unsort/tool
+# 2018-10-30
+# ==========================================================
+
+class LogFile(object):
+    """log info to file."""
+
+    def __init__(self, log_file_path, print_fn=print):
+        self.log_file_path = log_file_path
+        self.print_fn = print_fn
+        makedirs(dirname(self.log_file_path), exist_ok=True)  # exist_ok: if exist, not raise error.
+
+    def log(self, content, end="\n"):
+        # print content
+        self.print_fn("[log2file: `%s`] %s" % (self.log_file_path, content))
+        # append to file
+        with open(self.log_file_path, "a") as f:
+            f.write(str(content) + end)
+
+    def log2file(self, content, log_file_path, end="\n"):
+        """spec log file."""
+        temp = self.log_file_path
+        self.log_file_path = log_file_path
+        makedirs(dirname(self.log_file_path), exist_ok=True)
+        self.log(content, end=end)
+        self.log_file_path = temp
+
+    def set_log_file(self, log_file_path):
+        """change log file."""
+        self.log_file_path = log_file_path
+
+
+# ==========================================================
+
+
+class Printer:
+    RED = '\033[91m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    LIGHT_PURPLE = '\033[94m'
+    PURPLE = '\033[95m'
+    END = '\033[0m'
+
+    @classmethod
+    def red(cls, s, **kwargs):
+        print(cls.RED + s + cls.END, **kwargs)
+
+    @classmethod
+    def green(cls, s, **kwargs):
+        print(cls.GREEN + s + cls.END, **kwargs)
+
+    @classmethod
+    def yellow(cls, s, **kwargs):
+        print(cls.YELLOW + s + cls.END, **kwargs)
+
+    @classmethod
+    def lightPurple(cls, s, **kwargs):
+        print(cls.LIGHT_PURPLE + s + cls.END, **kwargs)
+
+    @classmethod
+    def purple(cls, s, **kwargs):
+        print(cls.PURPLE + s + cls.END, **kwargs)
 # ==========================================================
