@@ -2,11 +2,8 @@
 import re
 
 
-def parse_arff(file_in):
-    """parse *.arff file.
-    :param file_in: *.arff file to parse.
-    :return content: the csv format content.
-    """
+def trans_arff2csv(file_in, file_out):
+    """trans *.arff file to *.csv file."""
     columns = []
     data = []
     with open(file_in, 'r') as f:
@@ -22,22 +19,18 @@ def parse_arff(file_in):
                 data.append(line)
 
     content = ','.join(columns) + '\n' + ''.join(data)
-    return content
 
-
-def save_file(content, file_out):
-    """save file.
-    :param content: content to save.
-    :param file_out: save path.
-    """
+    # save to file
     with open(file_out, 'w') as f:
         f.write(content)
 
 
 if __name__ == '__main__':
+    from multi_label.arff2csv import trans_arff2csv
+
     # setting arff file path
     file_attr_in = r'D:\Downloads\birds\birds-test.arff'
     # setting output csv file path
     file_csv_out = r"D:\Downloads\birds\birds-test.csv"
     # trans
-    save_file(parse_arff(file_attr_in), file_csv_out)
+    trans_arff2csv(file_attr_in, file_csv_out)
