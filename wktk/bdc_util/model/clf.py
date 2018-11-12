@@ -1,7 +1,7 @@
 import pandas as pd
-from bdc_util.model.model_helper import show_feature_importance
+from wktk.bdc_util.model.model_helper import show_feature_importance
 
-from wktk import PdPrinter
+from wktk.wktk import PdPrinter
 
 
 def predict_by_lr(x_train, y_train, x_test, ft_cols):

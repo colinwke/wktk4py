@@ -2,6 +2,7 @@
 wktk: wangke tool kits
 2017-5-5
 """
+import sys
 from time import time, ctime, strftime, localtime
 
 import pickle
@@ -12,12 +13,21 @@ import pandas as pd
 
 import math
 
-from os.path import exists, isfile, isdir, dirname
+from os.path import exists, dirname
 from os import makedirs
 
 import logging
 
 import matplotlib.pyplot as plt
+
+
+class Singleton(type):
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
 
 
 # ==========================================================
@@ -245,54 +255,38 @@ class LengthCounter(object):
 # Logging to file
 # ==========================================================
 
-class Logging(object):
-    def __init__(self, content=''):
-        current_time = Logging.get_current_time()
-        if content == '':
-            self.content = current_time + '\n'
-        else:
-            self.content = current_time + ' ' + content + '\n'
-        print('Logging: ' + self.content, end='')
 
-    def append(self, content, end='\n'):
-        print('Logging: ' + str(content), end=end)
-        if not isinstance(content, str):
-            content = str(content)
-        self.content += (content + end)
+class LoggingConfig:
+    """For logging basic config.
 
-    def save(self, file, mode='a'):
-        print('Logging: [' + mode + '] to ' + file)
-        with open(file, mode) as f:
-            f.write(self.content)
-        self.content = ''  # clear buffer
+    How to use:
+    ---
+    # start application
+    LoggingConfig.init(log_path, file_name)
+
+    # when you logging
+    # first get logger at first
+    logger = logging.getLogger()
+    # then, logging info you want
+    logger.info()
+    """
 
     @staticmethod
-    def get_current_time():
-        from time import time, strftime, localtime
-        return strftime('[%Y-%m-%d %H:%M:%S]', localtime(time()))
+    def init(file_path=""):
+        """refs: https://stackoverflow.com/a/46098711/6494418"""
 
+        handlers = [logging.StreamHandler(sys.stdout)]
+        if file_path != "":
+            # add file handler
+            makedirs(dirname(file_path), exist_ok=True)
+            handlers.append(logging.FileHandler(file_path))
 
-class Logger(object):
-    def __init__(self, log_name=None):
-        if log_name is not None:
-            logging.basicConfig(filename=log_name + '.log',
-                                filemode='a',
-                                format='[%(asctime)s %(levelname)s] %(message)s',
-                                datefmt='%m-%d %H:%M:%S',
-                                level=logging.INFO)
-            self.logger = logging.getLogger(log_name)
-            self.logger.addHandler(logging.StreamHandler())
-        else:
-            logging.basicConfig(format='[%(asctime)s %(levelname)s] %(message)s',
-                                datefmt='%m-%d %H:%M:%S',
-                                level=logging.INFO)
-            self.logger = logging.getLogger('default')
-
-    def print(self, msg, file=None, *args, **kwargs):
-        self.logger.info(msg, *args, **kwargs)
-        if file is not None:
-            with open(file, 'a') as f:
-                f.write(msg)
+        logging.basicConfig(
+            level=logging.INFO,
+            # format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s",
+            format="%(asctime)s [%(levelname)-5.5s]  %(message)s",
+            datefmt='[%m-%d %H:%M:%S]',
+            handlers=handlers)
 
 
 # ==========================================================
@@ -443,36 +437,6 @@ class FileUtils:
 # ==========================================================
 # update from 58 ctr/unsort/tool
 # 2018-10-30
-# ==========================================================
-
-class LogFile(object):
-    """log info to file."""
-
-    def __init__(self, log_file_path, print_fn=print):
-        self.log_file_path = log_file_path
-        self.print_fn = print_fn
-        makedirs(dirname(self.log_file_path), exist_ok=True)  # exist_ok: if exist, not raise error.
-
-    def log(self, content, end="\n"):
-        # print content
-        self.print_fn("[log2file: `%s`] %s" % (self.log_file_path, content))
-        # append to file
-        with open(self.log_file_path, "a") as f:
-            f.write(str(content) + end)
-
-    def log2file(self, content, log_file_path, end="\n"):
-        """spec log file."""
-        temp = self.log_file_path
-        self.log_file_path = log_file_path
-        makedirs(dirname(self.log_file_path), exist_ok=True)
-        self.log(content, end=end)
-        self.log_file_path = temp
-
-    def set_log_file(self, log_file_path):
-        """change log file."""
-        self.log_file_path = log_file_path
-
-
 # ==========================================================
 
 

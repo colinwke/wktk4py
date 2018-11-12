@@ -4,7 +4,7 @@ feature merger
 
 import pandas as pd
 
-from wktk import PdPrinter, PickleUtils
+from wktk.wktk import PdPrinter, PickleUtils
 
 
 def merge_table(left, right):

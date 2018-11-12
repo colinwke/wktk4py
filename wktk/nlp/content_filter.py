@@ -34,3 +34,8 @@ def filter_out_html(s):
     s = ' '.join(s.split())
 
     return s
+
+
+def get_all_numeric(s):
+    """return a list extract all numeric, include int and float."""
+    return [float(x) if '.' in x else int(x) for x in re.findall(r'-?\d+\.?\d*', s)]

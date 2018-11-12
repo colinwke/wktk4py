@@ -3,7 +3,7 @@ A personal toolkit for python.
 
 ### Multi-Lable
 
-`*.arff` file to `*.csv` file [[source]](multi_label/arff2csv.py)
+`*.arff` file to `*.csv` file [[source]](wktk/multi_label/arff2csv.py)
 
 ``` python
 from multi_label.arff2csv import trans_arff2csv

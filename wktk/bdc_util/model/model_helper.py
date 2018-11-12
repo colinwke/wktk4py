@@ -1,13 +1,12 @@
 """
 model helper
 """
-import re
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from wktk import PdPrinter
+from wktk.wktk import PdPrinter
 
 
 def _is_fxx_format(d):
@@ -147,8 +146,6 @@ def get_values(train, test, d_cols):
 
 
 def f_score(y_pred, y_true, threshold=0.5, on_label=1, keeper=[], bp=True):
-    from sklearn.metrics import roc_auc_score
-
     # if y_pred.dtype is not np.int:
         # if bp: print('roc_auc_score: %.4f' % roc_auc_score(y_true, y_pred))
     y_pred = np.where(y_pred > threshold, 1, 0)
@@ -162,7 +159,6 @@ def f_score(y_pred, y_true, threshold=0.5, on_label=1, keeper=[], bp=True):
                  % (f1, precise, recall, n_tp, n_pred, n_true))
 
     # confusion_matrix
-    from sklearn.metrics import confusion_matrix
     # if bp: print('confusion_matrix[0, 1]:\n%s' % str(confusion_matrix(y_pred, y_true)))
 
     return f1

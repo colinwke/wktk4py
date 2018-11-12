@@ -1,8 +1,7 @@
 from os import listdir
 from os.path import isfile, join
 
-from wktk import *
-from bdc_util.pd_utils import df2list
+from wktk.bdc_util import df2list
 
 
 def get_reference(path, file_suffix='.csv', return_filename=False):

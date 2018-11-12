@@ -26,7 +26,7 @@ def trans_arff2csv(file_in, file_out):
 
 
 if __name__ == '__main__':
-    from multi_label.arff2csv import trans_arff2csv
+    from wktk.multi_label.arff2csv import trans_arff2csv
 
     # setting arff file path
     file_attr_in = r'D:\Downloads\birds\birds-test.arff'

@@ -1,8 +1,8 @@
 """
 submit result
 """
-from bdc_util.submit.submit_helper import get_inner_info
-from wktk import TimeUtils
+from wktk.bdc_util.submit.submit_helper import get_inner_info
+from wktk.wktk import TimeUtils
 
 
 def online_submit(data, folder_submit):

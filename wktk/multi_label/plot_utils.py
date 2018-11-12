@@ -13,14 +13,13 @@ import numpy as np
 import pandas as pd
 
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 
 from sklearn.utils import check_array
 from sklearn.preprocessing import scale
 from sklearn.manifold import MDS
 from sklearn.decomposition import PCA
 
-from wktk import PdPrinter
+from wktk.wktk import PdPrinter
 
 
 def encode_label(target):
