@@ -2,31 +2,28 @@
 wktk: wangke tool kits
 2017-5-5
 """
+import logging
+import math
+import multiprocessing as mp
+import pickle
 import sys
+from os import makedirs
+from os.path import exists, dirname
 from time import time, ctime, strftime, localtime
 
-import pickle
-import multiprocessing as mp
-
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-import math
-
-from os.path import exists, dirname
-from os import makedirs
-
-import logging
-
-import matplotlib.pyplot as plt
-
 
 class Singleton(type):
+    """https://stackoverflow.com/a/6798042/6494418"""
     _instances = {}
 
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+            cls._instances[cls] = super(Singleton, cls).__call__(
+                *args, **kwargs)
         return cls._instances[cls]
 
 
@@ -98,11 +95,14 @@ class PdPrinter:
 
         nan_columns = df.columns[pd.isnull(df).any()].tolist()
         com_columns = [x for x in df.columns if x not in nan_columns]
-        print('all columns     : (count: %d, ratio: %.4f)  %s' % (len(df.columns), 1, str(list(df.columns))))
+        print('all columns     : (count: %d, ratio: %.4f)  %s' % (
+            len(df.columns), 1, str(list(df.columns))))
         print('nan columns     : (count: %d, ratio: %.4f)  %s' % (
-            len(nan_columns), len(nan_columns) / len(df.columns), str(nan_columns)))
+            len(nan_columns), len(nan_columns) / len(df.columns),
+            str(nan_columns)))
         print('complete columns: (count: %d, ratio: %.4f)  %s' % (
-            len(com_columns), len(com_columns) / len(df.columns), str(com_columns)))
+            len(com_columns), len(com_columns) / len(df.columns),
+            str(com_columns)))
         # nan statistics
         print('=== row count %d' % len(df))
         print('%-20s %-10s %s' % ('column', 'nan count', 'nan ratio'))
@@ -247,7 +247,8 @@ class LengthCounter(object):
         else:
             len_tmp = len(x)
 
-        print('LengthCounter: (%d %+d) = %d' % (self.len_pre, len_tmp - self.len_pre, len_tmp))
+        print('LengthCounter: (%d %+d) = %d' % (
+            self.len_pre, len_tmp - self.len_pre, len_tmp))
         self.len_pre = len_tmp
 
 
@@ -288,6 +289,46 @@ class LoggingConfig:
             format="%(asctime)s [%(levelname)-5.5s]  %(message)s",
             datefmt='[%m-%d %H:%M:%S]',
             handlers=handlers)
+
+
+class LG(metaclass=Singleton):
+    def __init__(self):
+        self.names = set()
+        self.formatter = logging.Formatter(
+            fmt="%(asctime)s [%(levelname)-5.5s]  %(message)s",
+            datefmt="[%m-%d %H:%M:%S]")
+
+    def get_names(self):
+        return self.names
+
+    def _setup_logger(self, name="root", log_file=None):
+        """refs: https://stackoverflow.com/a/11233293/6494418"""
+        logger = logging.getLogger(name)
+        logger.setLevel(logging.INFO)
+
+        # steam handler
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(self.formatter)
+        logger.addHandler(handler)
+
+        # file handler
+        if log_file is not None:
+            makedirs(dirname(log_file), exist_ok=True)
+            handler = logging.FileHandler(log_file)
+            handler.setFormatter(self.formatter)
+            logger.addHandler(handler)
+
+        return logger
+
+    def get_logger(self, name="root", log_file=None):
+        if name in self.names:
+            logger = logging.getLogger(name)
+        else:
+            self.names.add(name)
+            logger = self._setup_logger(name, log_file)
+            print("[Set logger] name: {0}, file: {1}".format(name, log_file))
+
+        return logger
 
 
 # ==========================================================
