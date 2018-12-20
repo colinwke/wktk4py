@@ -257,41 +257,7 @@ class LengthCounter(object):
 # ==========================================================
 
 
-class LoggingConfig:
-    """For logging basic config.
-
-    How to use:
-    ---
-    # start application
-    LoggingConfig.init(log_path, file_name)
-
-    # when you logging
-    # first get logger at first
-    logger = logging.getLogger()
-    # then, logging info you want
-    logger.info()
-    """
-
-    @staticmethod
-    def init(file_path=""):
-        """refs: https://stackoverflow.com/a/46098711/6494418"""
-
-        handlers = [logging.StreamHandler(sys.stdout)]
-        if file_path != "":
-            # add file handler
-            makedirs(dirname(file_path), exist_ok=True)
-            handlers.append(logging.FileHandler(file_path))
-            print("Logging file path: {0}".format(file_path))
-
-        logging.basicConfig(
-            level=logging.INFO,
-            # format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s",
-            format="%(asctime)s [%(levelname)-5.5s]  %(message)s",
-            datefmt='[%m-%d %H:%M:%S]',
-            handlers=handlers)
-
-
-class LG(metaclass=Singleton):
+class Logger(metaclass=Singleton):
     def __init__(self):
         self.names = set()
         self.formatter = logging.Formatter(
@@ -301,8 +267,11 @@ class LG(metaclass=Singleton):
     def get_names(self):
         return self.names
 
-    def _setup_logger(self, name="root", log_file=None):
-        """refs: https://stackoverflow.com/a/11233293/6494418"""
+    def _setup_logger(self, name="default", log_file=None):
+        """refs:
+        https://stackoverflow.com/a/46098711/6494418
+        https://stackoverflow.com/a/11233293/6494418
+        """
         logger = logging.getLogger(name)
         logger.setLevel(logging.INFO)
 
@@ -320,7 +289,7 @@ class LG(metaclass=Singleton):
 
         return logger
 
-    def get_logger(self, name="root", log_file=None):
+    def get_logger(self, name="default", log_file=None):
         if name in self.names:
             logger = logging.getLogger(name)
         else:
@@ -329,55 +298,6 @@ class LG(metaclass=Singleton):
             print("[Set logger] name: {0}, file: {1}".format(name, log_file))
 
         return logger
-
-
-# ==========================================================
-# path utils
-# ==========================================================
-
-class Path(object):
-    @staticmethod
-    def append(path, append):
-        index = path.index('.')
-
-        return path[:index] + append
-
-    @staticmethod
-    def rename(path, rename):
-        index = path.rindex('\\')
-
-        return path[:index + 1] + rename
-
-    @staticmethod
-    def get_folder(path):
-        index = path.rindex('\\')
-
-        return path[:index + 1]
-
-
-# ==========================================================
-
-class Txt():
-    def __init__(self):
-        self.txt = ''
-
-    def append(self, txt):
-        print(txt)
-        self.txt += txt
-
-    def save(self, path):
-        with open(path, 'w') as f:
-            f.write(self.txt)
-
-    @staticmethod
-    def write(txt, path):
-        with open(path, 'w') as f:
-            f.write(txt)
-
-    @staticmethod
-    def read(path):
-        with open(path, 'r') as f:
-            return f.read()
 
 
 # ==========================================================
@@ -509,4 +429,5 @@ class Printer:
     @classmethod
     def purple(cls, s, **kwargs):
         print(cls.PURPLE + s + cls.END, **kwargs)
+        
 # ==========================================================
