@@ -8,27 +8,28 @@
 
 class LossKeeper(object):
 
-    def __init__(self, n_loss):
+    def __init__(self):
         # init values
-        self.n_loss = n_loss
-        self.losses = [0.0 for _ in range(self.n_loss)]
-
+        self.n_loss = 0
         # setting iter2step value
         self.i_iter = 0
 
     def update(self, *args):
         """update losses"""
-        if len(args) != self.n_loss:
-            raise ValueError("parameter error!")
+        len_args = len(args)
 
-        for i in range(self.n_loss):
-            self.losses[i] += args[i].item()
+        if self.n_loss == 0:
+            self.n_loss = len_args
+            self.losses = [0 for _ in range(self.n_loss)]
+        elif self.n_loss != len_args:
+            raise ValueError("number of loss not match!")
 
+        self.losses = [self.losses[i] + args[i] for i in range(self.n_loss)]
         self.i_iter += 1
 
     def get_avg(self):
         """return average loss and reset."""
         losses = [i / self.i_iter for i in self.losses]
 
-        self.__init__(self.n_loss)
+        self.__init__()
         return losses

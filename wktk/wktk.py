@@ -280,6 +280,7 @@ class LoggingConfig:
             # add file handler
             makedirs(dirname(file_path), exist_ok=True)
             handlers.append(logging.FileHandler(file_path))
+            print("Logging file path: {0}".format(file_path))
 
         logging.basicConfig(
             level=logging.INFO,
