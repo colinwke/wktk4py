@@ -14,6 +14,7 @@ from time import time, ctime, strftime, localtime
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import yaml
 
 
 class Singleton(type):
@@ -429,5 +430,26 @@ class Printer:
     @classmethod
     def purple(cls, s, **kwargs):
         print(cls.PURPLE + s + cls.END, **kwargs)
-        
+
+
 # ==========================================================
+
+class Yaml:
+    """refs:
+    https://stackoverflow.com/a/1774043/6494418
+    https://stackoverflow.com/a/12471272/6494418
+    """
+    @staticmethod
+    def load(file):
+        with open(file, 'r') as stream:
+            try:
+                result = yaml.load(stream)
+            except yaml.YAMLError as exc:
+                raise yaml.YAMLError(exc)
+
+        return result
+
+    @staticmethod
+    def dump(data, file):
+        with open(file, 'w') as outfile:
+            yaml.dump(data, outfile, default_flow_style=False)
