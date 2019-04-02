@@ -2,19 +2,18 @@
 wktk: wangke tool kits
 2017-5-5
 """
-import logging
-import math
-import multiprocessing as mp
-import pickle
+import os
 import sys
-from os import makedirs
-from os.path import exists, dirname
-from time import time, ctime, strftime, localtime
+import time
+import yaml
+import math
+import pickle
+import logging
+import multiprocessing
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import yaml
+import matplotlib.pyplot as plt
 
 
 class Singleton(type):
@@ -36,26 +35,36 @@ class Timestamp(object):
     def __init__(self):
         self._start = time()
         self._cstart = self._start
+        self.log = []
 
-        print("Timestamp start: %s" % str(ctime()))
+        msg = "Timestamp start: %s" % str(time.ctime())
+        self.log.append(msg)
+        print(msg)
 
     def cut(self, info=None):
         current = time()
         run_time = time() - self._cstart
         self._cstart = current
 
-        print("Timestamp cut: %s, %.2fs" % (ctime(), run_time))
-        if info is not None: print(info)
+        msg = "Timestamp cut: %s, %.2fs" % (time.ctime(), run_time)
+        if info is not None: msg = "\n".join([msg, info])
+        self.log.append(msg)
+        print(msg)
 
     def end(self):
         run_time = time() - self._start
-        print("Timestamp end: %s, %.2fs" % (ctime(), run_time))
+        msg = "Timestamp end: %s, %.2fs" % (time.ctime(), run_time)
+        self.log.append(msg)
+        print(msg)
 
     def exit(self, info=None):
         self.end()
 
         if info is not None: print(info)
         exit(1015)
+
+    def get_log(self):
+        return "\n".join(self.log)
 
 
 # ==========================================================
@@ -122,44 +131,22 @@ class PickleUtils:
     def load_pickle(file_path):
         with open(file_path, 'rb') as f:
             ret = pickle.load(f)
-            print('PickleUitls: load from %s success!' % file_path)
+            print('PickleUitls: load from `%s` success!' % file_path)
             return ret
 
     @staticmethod
     def dump_pickle(data, file_path):
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with open(file_path, 'wb') as f:
             pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
-            print('PickleUitls: save to %s success!' % file_path)
+            print('PickleUitls: save to `%s` success!' % file_path)
 
     @staticmethod
-    def load_exist_pickle(file_path):
-        if exists(file_path):
+    def load_exist_pickle(file_path, remake=False):
+        if os.path.exists(file_path) and not remake:
             return PickleUtils.load_pickle(file_path)
         else:
             return None
-
-    @staticmethod
-    def get_cache_file_path(file_path, append_folder='cache'):
-        index_r = file_path.rindex('\\')
-        folder_path = file_path[:(index_r + 1)] + append_folder + '\\'
-        if not exists(folder_path):
-            makedirs(folder_path)
-
-        file_path = folder_path + file_path[(index_r + 1):][:-4] + '.pk'
-
-        return file_path
-
-    @staticmethod
-    def read_cache_csv(file_path, update=False):
-        pk_path = PickleUtils.get_cache_file_path(file_path, 'cache')
-
-        if (not exists(pk_path)) | update:
-            data = pd.read_csv(file_path)
-            PickleUtils.dump_pickle(data, pk_path)
-        else:
-            data = PickleUtils.load_pickle(pk_path)
-
-        return data
 
 
 # ==========================================================
@@ -179,8 +166,8 @@ class MultiProcess:
 
     @staticmethod
     def apply(func, pipe, args=()):
-        n_core = min(len(pipe), mp.cpu_count() - 1)
-        with mp.Pool(n_core) as pool:
+        n_core = min(len(pipe), multiprocessing.cpu_count() - 1)
+        with multiprocessing.Pool(n_core) as pool:
             ret_list = [pool.apply_async(func, (i,) + args).get() for i in pipe]
         return ret_list
 
@@ -188,8 +175,8 @@ class MultiProcess:
     def map(func, pipe, args=None):
         if args is None:
             args = {}
-        n_cpu = min(len(pipe), mp.cpu_count() - 1)
-        with mp.Pool(n_cpu) as pool:
+        n_cpu = min(len(pipe), multiprocessing.cpu_count() - 1)
+        with multiprocessing.Pool(n_cpu) as pool:
             if len(args) == 0:
                 ret_list = pool.map(func, pipe)
             else:
@@ -199,23 +186,23 @@ class MultiProcess:
 
     @staticmethod
     def apply_parallel(dfGrouped, func):
-        n_cpu = min(len(dfGrouped), mp.cpu_count() - 1)
-        with mp.Pool(n_cpu) as p:
+        n_cpu = min(len(dfGrouped), multiprocessing.cpu_count() - 1)
+        with multiprocessing.Pool(n_cpu) as p:
             ret_list = p.map(func, [group for name, group in dfGrouped])
         return pd.concat(ret_list)
 
     @staticmethod
     def apply_series_parallel(dfGrouped, func):
-        n_cpu = min(len(dfGrouped), mp.cpu_count() - 1)
-        with mp.Pool(n_cpu) as p:
+        n_cpu = min(len(dfGrouped), multiprocessing.cpu_count() - 1)
+        with multiprocessing.Pool(n_cpu) as p:
             ret_list = p.map(func, [group for name, group in dfGrouped])
         return ret_list
 
-    # other helper for mp
+    # other helper for multiprocessing
     @staticmethod
     def split_table(data, num=0):
         if num == 0:
-            num = mp.cpu_count() - 1
+            num = multiprocessing.cpu_count() - 1
 
         len_data = len(data)
         per_data = math.ceil(len_data / num)
@@ -283,7 +270,7 @@ class Logger(metaclass=Singleton):
 
         # file handler
         if log_file is not None:
-            makedirs(dirname(log_file), exist_ok=True)
+            os.makedirs(os.path.dirname(log_file), exist_ok=True)
             handler = logging.FileHandler(log_file)
             handler.setFormatter(self.formatter)
             logger.addHandler(handler)
@@ -321,7 +308,7 @@ class UnsortTool:
     def get_current_time(simple=True):
         """get current time."""
         time_format = "%m%d%H%M%S" if simple else "%Y-%m-%d %H:%M:%S"
-        return strftime(time_format, localtime())
+        return time.strftime(time_format, time.localtime())
 
     @staticmethod
     def drop_duplicates(values):
@@ -357,6 +344,13 @@ class UnsortTool:
         colors = [colors[i] for i in values]
 
         return colors
+
+    @staticmethod
+    def move_list_tail_to_head(l):
+        if not isinstance(l, list):
+            l = list(l)
+        l.insert(0, l.pop(-1))
+        return l
 
 
 # ==========================================================
@@ -394,7 +388,7 @@ class FileUtils:
     @staticmethod
     def create_if_not_exist_dir(path):
         """https://stackoverflow.com/a/12517490/6494418"""
-        makedirs(dirname(path), exist_ok=True)
+        os.makedirs(path.dirname(path), exist_ok=True)
 
 
 # ==========================================================
@@ -439,6 +433,7 @@ class Yaml:
     https://stackoverflow.com/a/1774043/6494418
     https://stackoverflow.com/a/12471272/6494418
     """
+
     @staticmethod
     def load(file):
         with open(file, 'r') as stream:
@@ -453,3 +448,56 @@ class Yaml:
     def dump(data, file):
         with open(file, 'w') as outfile:
             yaml.dump(data, outfile, default_flow_style=False)
+
+
+# ==========================================================
+# update 2019-3-27 15:27:53
+# ==========================================================
+
+class Email:
+    """python send email.
+    ---
+    refs:
+    http://www.runoob.com/python3/python3-smtp.html
+    https://stackoverflow.com/a/6270987/6494418
+    https://blog.csdn.net/weixin_40475396/article/details/78693408
+    https://blog.csdn.net/gpf951101/article/details/78909233
+    https://blog.csdn.net/mouday/article/details/79896727
+    """
+
+    def __init__(self):
+        self.mail_host = "smtp.163.com"
+        self.mail_user = "wfcrgt@163.com"
+        self.mail_pass = "wang1ke23ctrip45"
+
+        self.smtpObj = None
+
+    def _login(self):
+        import smtplib
+
+        self.smtpObj = smtplib.SMTP_SSL(self.mail_host, port=465)
+        self.smtpObj.login(self.mail_user, self.mail_pass)
+
+    def send_email(self, subject="none", content="none", receivers=None):
+        from email.mime.text import MIMEText
+        from email.header import Header
+
+        if self.smtpObj is None:
+            self._login()
+
+        if receivers is None:
+            receivers = self.mail_user
+
+        message = MIMEText(content, "plain", "utf-8")
+        message["Subject"] = Header(subject, "utf-8")
+        message["From"] = self.mail_user  # same to sender
+        message["To"] = str(receivers)
+
+        print("\n".join(["=" * 32, str(message), "=" * 32]))
+        self.smtpObj.sendmail(self.mail_user, receivers, message.as_string())
+        print("send email success!")
+
+
+if __name__ == '__main__':
+    email = Email()
+    email.send_email("hello")

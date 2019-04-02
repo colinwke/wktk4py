@@ -4,9 +4,11 @@ text classification feature
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp
+from sklearn.model_selection import KFold
+from wktk.bdc_util.model.model_helper import f_score, show_predict_information
 
 
-def nb_norm(x_train, y_train, x_test):
+def nb_norm(x_train, y_train, x_test=None):
     """ nb feature
         An Classifier is built over NB log-count ratios as feature values
             https://www.kaggle.com/jhoward/nb-svm-strong-linear-baseline-eda-0-052-lb
@@ -20,18 +22,20 @@ def nb_norm(x_train, y_train, x_test):
     r = np.log(pr(x_train, 1, y_train) / pr(x_train, 0, y_train))
     r = sp.csr_matrix(r)
     x_train = x_train.multiply(r)
-    x_test = x_test.multiply(r)
-
-    return x_train, x_test
+    if x_test:
+        x_test = x_test.multiply(r)
+        return x_train, x_test
+    else:
+        return x_train
 
 
 def get_text_feature(texts,
                      labels=None,
                      nrow_train=None,
-                     vec='bow',
-                     lowercase=False,
-                     analyzer='word',
-                     single_token=True,
+                     vec='bow',  # make feature method, bow and tfidf
+                     lowercase=False,  # trans eng chat to lower
+                     analyzer='word',  # `char` and `word`, default `word`
+                     single_token=True,  # keep single token
                      ngram_range=(1, 1),
                      stop_words=None,
                      min_df=2,
@@ -76,6 +80,10 @@ def get_text_feature(texts,
     feature = vec.fit_transform(texts)
     feature_names = vec.get_feature_names()
 
+    if select_k is not None:
+        if isinstance(select_k, float):
+            select_k = int(feature.shape[1] * select_k)
+
     # feature select
     if (labels is not None) and (select_k is not None):
         if nrow_train is not None:
@@ -98,44 +106,44 @@ def get_text_feature(texts,
             feature = feature_selector.fit_transform(feature, labels)
             feature_names = np.array(feature_names)[feature_selector.get_support()]
 
-    return feature, list(feature_names)
+    return feature, feature_names
 
-def predict_by_kfold(feature, labels, feature_names):
+
+def predict_by_kfold(
+        feature,
+        labels,
+        feature_names,
+        pred_func,
+        n_splits=5,
+        shuffle_split=True,
+        proba_threshold=0.5,
+        eval_label=1,
+        **kwargs):
+    """K-Fold prediction."""
     results = []
-    kf = KFold(n_splits=5, shuffle=True)
-    proba_threshold = 0.5
-    evaluate_label = 1
-    lgb = True
-    for train_index, test_index in kf.split(feature):
+    kf = KFold(n_splits=n_splits, shuffle=shuffle_split)
+    for i, (train_index, test_index) in enumerate(kf.split(feature, labels)):
+        print("start fold [%s/%s] prediction..." % (i + 1, n_splits))
         x_train, x_test = feature[train_index], feature[test_index]
         y_train, y_test = labels[train_index], labels[test_index]
 
-        if lgb:
-            proba, fi = predict_by_lgb(x_train, y_train, x_test, feature_names, ret_fi=True)
-            sentiment_table.append(fi)
+        # prediction
+        prob = pred_func(x_train, y_train, x_test, feature_names, **kwargs)
+
+        if prob.shape[1] > 1:
+            # multi-class probability
+            pred_max = np.argmax(prob, axis=1)
+            results.append(np.hstack(
+                [test_index.reshape(-1, 1), y_test.values.reshape(-1, 1), pred_max.reshape(-1, 1), prob]))
         else:
-            x_train, x_test = nb_norm(x_train, y_train, x_test)
-            clf = LogisticRegression().fit(x_train, y_train)
-            if hasattr(clf, 'predict_proba'):
-                proba = clf.predict_proba(x_test)[:, 1]
-            else:
-                print('without predict proba, hard predict!')
-                proba = clf.predict(x_test)
-
-            # # feature importance
-            if hasattr(clf, 'coef_'):
-                sentiment_table.append(pd.Series(clf.coef_[0], index=feature_names).sort_values(ascending=False))
-            elif hasattr(clf, 'feature_importances_'):
-                sentiment_table.append(
-                    pd.Series(clf.feature_importances_, index=feature_names).sort_values(ascending=False))
-
-        # pred = np.where(proba > proba_threshold, 1, 0)
-        f_score(proba, y_test, on_label=evaluate_label, threshold=proba_threshold)
-        results.append(np.array([proba, y_test, proba, test_index]).T)
+            pred = np.where(prob > proba_threshold, 1, 0)
+            results.append(np.array([test_index, y_test, pred, prob]).T)
     results = np.concatenate(results)
-    print('eval parms: eval_label: %d, threshold: %s' % (evaluate_label, proba_threshold))
-    f_score(results[:, 0], results[:, 1], on_label=evaluate_label, threshold=proba_threshold)
-    # show_predict_information(results[:, 2])
+    # sort with test index
+    results = results[results[:, 0].argsort()]
+    # evaluate
+    # print('eval parms: eval_label: %d, threshold: %s' % (eval_label, proba_threshold))
+    # f_score(results[:, 1], results[:, 2], on_label=eval_label)
 
     return results
 
@@ -167,3 +175,5 @@ class SentimentTable(object):
             pieces.to_csv(save, encoding='utf-8')
 
         return pieces.to_dict()
+
+
