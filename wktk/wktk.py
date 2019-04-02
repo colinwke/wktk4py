@@ -33,7 +33,7 @@ class Singleton(type):
 
 class Timestamp(object):
     def __init__(self):
-        self._start = time()
+        self._start = time.time()
         self._cstart = self._start
         self.log = []
 
@@ -42,8 +42,8 @@ class Timestamp(object):
         print(msg)
 
     def cut(self, info=None):
-        current = time()
-        run_time = time() - self._cstart
+        current = time.time()
+        run_time = time.time() - self._cstart
         self._cstart = current
 
         msg = "Timestamp cut: %s, %.2fs" % (time.ctime(), run_time)
@@ -52,7 +52,7 @@ class Timestamp(object):
         print(msg)
 
     def end(self):
-        run_time = time() - self._start
+        run_time = time.time() - self._start
         msg = "Timestamp end: %s, %.2fs" % (time.ctime(), run_time)
         self.log.append(msg)
         print(msg)
@@ -209,6 +209,32 @@ class MultiProcess:
 
         bucket = [x * per_data for x in range(num)]
         data = [data.iloc[x:x + per_data, :] for x in bucket]
+
+        return data
+
+    @staticmethod
+    def split_multi_process_pd(data, func, num_core=None):
+        """refs:
+        http://blog.adeel.io/2016/11/06/parallelize-pandas-map-or-apply/
+        http://www.racketracer.com/2016/07/06/pandas-in-parallel/
+        """
+        cpu_count = multiprocessing.cpu_count()
+        if num_core is None:
+            num_core = cpu_count - 1
+        elif isinstance(num_core, float):
+            num_core = cpu_count * num_core
+        elif num_core < 0 and isinstance(num_core, int):
+            num_core = cpu_count + num_core
+
+        if num_core > cpu_count or num_core < 1:
+            num_core = cpu_count - 1
+
+        print(("=" * 4 + "[split multi-process: core: %d]" + "=" * 4) % num_core)
+        data_split = np.array_split(data, num_core)
+        pool = multiprocessing.Pool(num_core)
+        data = pd.concat(pool.map(func, data_split))  # pandas dataframe of series
+        pool.close()
+        pool.join()
 
         return data
 
