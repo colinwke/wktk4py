@@ -9,6 +9,8 @@ import yaml
 import math
 import pickle
 import logging
+import itertools
+import functools
 import multiprocessing
 
 import numpy as np
@@ -154,89 +156,56 @@ class PickleUtils:
 # ==========================================================
 
 class MultiProcess:
-    """ examples:
-        MultiProcess.map(func3, data, {'x': 1000})
-        MultiProcess.apply(func3, data, (1000,))
-        MultiProcess.map(len, data)
-        MultiProcess.apply(len, data)
-
-        apply_parallel(dfGrouped, func) reference:
-        https://stackoverflow.com/questions/26187759/parallelize-apply-after-pandas-groupby
+    """ refs:
+    http://blog.adeel.io/2016/11/06/parallelize-pandas-map-or-apply/
+    http://www.racketracer.com/2016/07/06/pandas-in-parallel/
+    https://stackoverflow.com/a/716482/6494418
+    https://stackoverflow.com/a/27027632/6494418
     """
 
     @staticmethod
-    def apply(func, pipe, args=()):
-        n_core = min(len(pipe), multiprocessing.cpu_count() - 1)
-        with multiprocessing.Pool(n_core) as pool:
-            ret_list = [pool.apply_async(func, (i,) + args).get() for i in pipe]
-        return ret_list
-
-    @staticmethod
-    def map(func, pipe, args=None):
-        if args is None:
-            args = {}
-        n_cpu = min(len(pipe), multiprocessing.cpu_count() - 1)
-        with multiprocessing.Pool(n_cpu) as pool:
-            if len(args) == 0:
-                ret_list = pool.map(func, pipe)
-            else:
-                from functools import partial
-                ret_list = pool.map(partial(func, **args), pipe)
-        return ret_list
-
-    @staticmethod
-    def apply_parallel(dfGrouped, func):
-        n_cpu = min(len(dfGrouped), multiprocessing.cpu_count() - 1)
-        with multiprocessing.Pool(n_cpu) as p:
-            ret_list = p.map(func, [group for name, group in dfGrouped])
-        return pd.concat(ret_list)
-
-    @staticmethod
-    def apply_series_parallel(dfGrouped, func):
-        n_cpu = min(len(dfGrouped), multiprocessing.cpu_count() - 1)
-        with multiprocessing.Pool(n_cpu) as p:
-            ret_list = p.map(func, [group for name, group in dfGrouped])
-        return ret_list
-
-    # other helper for multiprocessing
-    @staticmethod
-    def split_table(data, num=0):
-        if num == 0:
-            num = multiprocessing.cpu_count() - 1
-
-        len_data = len(data)
-        per_data = math.ceil(len_data / num)
-
-        bucket = [x * per_data for x in range(num)]
-        data = [data.iloc[x:x + per_data, :] for x in bucket]
-
-        return data
-
-    @staticmethod
-    def split_multi_process_pd(data, func, num_core=None):
-        """refs:
-        http://blog.adeel.io/2016/11/06/parallelize-pandas-map-or-apply/
-        http://www.racketracer.com/2016/07/06/pandas-in-parallel/
+    def _get_process_num_core(num_core=None):
+        """get process core count.
+        float value: make frac of available core, frac * max_core, range (0, 1);
+        negative int value: available core to minus, range[0, 1-max_core];
+        positive int value: core count;
+        otherwise: available core minus 1.
         """
         cpu_count = multiprocessing.cpu_count()
         if num_core is None:
-            num_core = cpu_count - 1
+            num_core = multiprocessing.cpu_count() - 1
         elif isinstance(num_core, float):
-            num_core = cpu_count * num_core
-        elif num_core < 0 and isinstance(num_core, int):
+            num_core = int(cpu_count * num_core)
+        elif num_core <= 0:
             num_core = cpu_count + num_core
 
         if num_core > cpu_count or num_core < 1:
-            num_core = cpu_count - 1
+            raise ValueError(
+                "MultiProcess core count error! available [1, %d], "
+                "but get %s." % (cpu_count, num_core))
 
-        print(("=" * 4 + "[split multi-process: core: %d]" + "=" * 4) % num_core)
-        data_split = np.array_split(data, num_core)
-        pool = multiprocessing.Pool(num_core)
-        data = pd.concat(pool.map(func, data_split))  # pandas dataframe of series
-        pool.close()
-        pool.join()
+        return num_core
 
-        return data
+    @staticmethod
+    def _map_pieces(func, pieces, *args, **kwargs):
+        return [func(x, *args, **kwargs) for x in pieces]
+
+    @staticmethod
+    def map(func, data_list, num_core=None, single=False, *args, **kwargs):
+        if single:  # single core test
+            print("=" * 4 + "[Multiprocess single test!]" + "=" * 4)
+            return [func(x, *args, **kwargs) for x in data_list]
+
+        num_core = MultiProcess._get_process_num_core(num_core)
+
+        print(("=" * 4 + "[split multi-process, core: %d]" + "=" * 4) % num_core)
+        data_list = np.array_split(data_list, num_core)
+        with multiprocessing.Pool(num_core) as pool:
+            data_list = list(itertools.chain.from_iterable(
+                pool.map(functools.partial(
+                    MultiProcess._map_pieces, func, *args, **kwargs), data_list)))
+
+        return data_list
 
 
 # ==========================================================
@@ -320,7 +289,6 @@ class UnsortTool:
     @staticmethod
     def var2str(v):
         """ variable list to string """
-        # print('[\'' + v[1:-1].replace(', ', ',').replace(',', '\',\'') + '\']')
         if ',' not in v:
             v = '\',\''.join(v.split())
         else:
@@ -355,7 +323,7 @@ class UnsortTool:
         values_map = dict((v, k) for k, v in enumerate(elements))
 
         # replace valeus
-        values_mapped = [values_map[i] for i in values]
+        values_mapped = [values_map[i] for i in np.array(values)]
 
         if return_map:
             return values_mapped, values_map
