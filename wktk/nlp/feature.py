@@ -1,6 +1,7 @@
 """
 text classification feature
 """
+import re
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp
@@ -34,7 +35,7 @@ def get_text_feature(texts,
                      nrow_train=None,
                      vec='bow',  # make feature method, bow and tfidf
                      lowercase=False,  # trans eng chat to lower
-                     analyzer='word',  # `char` and `word`, default `word`
+                     analyzer='word',  # `char`, `char_chs` and `word`, default `word`
                      single_token=True,  # keep single token
                      ngram_range=(1, 1),
                      stop_words=None,
@@ -53,6 +54,11 @@ def get_text_feature(texts,
         token_pattern = r"\b\w+\b"
     else:
         token_pattern = r"(?u)\b\w\w+\b"
+
+    if analyzer == 'char_chs':
+        """only keep chs char!"""
+        analyzer = 'char'
+        texts = texts.map(lambda x: re.sub(u'[^\u4E00-\u9FA5]', "", x))
 
     # choose vec
     if vec is 'bow':
@@ -80,6 +86,8 @@ def get_text_feature(texts,
     feature = vec.fit_transform(texts)
     feature_names = vec.get_feature_names()
 
+    print('=' * 64 + ("\ngenerate feature success! %s\n%s" % (feature.shape, str(vec))))
+
     if select_k is not None:
         if isinstance(select_k, float):
             select_k = int(feature.shape[1] * select_k)
@@ -105,6 +113,8 @@ def get_text_feature(texts,
             feature_selector = SelectKBest(chi2, k=select_k)
             feature = feature_selector.fit_transform(feature, labels)
             feature_names = np.array(feature_names)[feature_selector.get_support()]
+
+        print('=' * 64 + ("\nselect feature success! %s\n%s" % (feature.shape, str(feature_selector))))
 
     return feature, feature_names
 
@@ -175,5 +185,3 @@ class SentimentTable(object):
             pieces.to_csv(save, encoding='utf-8')
 
         return pieces.to_dict()
-
-

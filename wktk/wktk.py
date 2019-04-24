@@ -188,13 +188,19 @@ class MultiProcess:
 
     @staticmethod
     def _map_pieces(func, pieces, *args, **kwargs):
+        try:
+            from tqdm import tqdm
+            pieces = tqdm(pieces)
+        except ImportError as e:
+            print(e)
+
         return [func(x, *args, **kwargs) for x in pieces]
 
     @staticmethod
     def map(func, data_list, num_core=None, single=False, *args, **kwargs):
         if single:  # single core test
             print("=" * 4 + "[Multiprocess single test!]" + "=" * 4)
-            return [func(x, *args, **kwargs) for x in data_list]
+            return MultiProcess._map_pieces(func, data_list, *args, **kwargs)
 
         num_core = MultiProcess._get_process_num_core(num_core)
 
@@ -213,25 +219,23 @@ class MultiProcess:
 # ==========================================================
 
 class LengthCounter(object):
-    def __init__(self, x, info=''):
+    def __init__(self, x, tag="none"):
         if isinstance(x, int):
             self.len_pre = x
         else:
             self.len_pre = len(x)
-        print('=== LengthCounter %s ===' % info)
-        print('LengthCounter: init (count: %d)' % self.len_pre)
 
-    def count(self, x, info=None):
-        if info is not None:
-            print(': ' + info)
+        self.tag = tag
+        print("[LengthCounter] (%s)(%d: init count)" % (tag, self.len_pre))
 
+    def count(self, x, info=""):
         if isinstance(x, int):
             len_tmp = x
         else:
             len_tmp = len(x)
 
-        print('LengthCounter: (%d %+d) = %d' % (
-            self.len_pre, len_tmp - self.len_pre, len_tmp))
+        print('[LengthCounter] (%s)(%d: %d%+d) %s' % (
+            self.tag, len_tmp, self.len_pre, len_tmp - self.len_pre, info))
         self.len_pre = len_tmp
 
 
@@ -346,6 +350,36 @@ class UnsortTool:
         l.insert(0, l.pop(-1))
         return l
 
+    @staticmethod
+    def move_val2idx(lst, val, to_idx):
+        if not isinstance(lst, list): lst = list(lst)
+        if to_idx < 0:  to_idx = len(lst) + to_idx
+        lst.pop(lst.index(val))
+        lst.insert(to_idx, val)
+
+        return lst
+
+    @staticmethod
+    def reverse_dict_map(d_map):
+        return {v: k for k, v in d_map.items()}
+
+    @staticmethod
+    def get_var_size(var):
+        var_size = sys.getsizeof(var)
+        for unit in ["b", "k", "m", "g", "t"]:
+            if var_size > 1024:
+                var_size /= 1024
+            else:
+                print("[Variable Size] %f%s" % (var_size, unit))
+                break
+
+    @staticmethod
+    def get_root_var_name(var):
+        """https://stackoverflow.com/a/40536047/6494418"""
+        for fi in reversed(inspect.stack()):
+            names = [var_name for var_name, var_val in fi.frame.f_locals.items() if var_val is var]
+            if len(names) > 0:  return names[0]
+
 
 # ==========================================================
 
@@ -374,6 +408,10 @@ class PdUtils():
         if reindex: df.index = range(len(df))
 
         return df
+
+    @staticmethod
+    def rename_col(df, old_col, new_col):
+        return df.rename(columns={old_col: new_col})
 
 
 # ==========================================================
@@ -492,6 +530,47 @@ class Email:
         print("send email success!")
 
 
+class ArgsUtils:
+    @staticmethod
+    def str2bool(value):
+        """string true, false to bool True, False."""
+        value = value.lower()
+        if value in ('true', 'false'):
+            return v_lower == 'true'
+        else:
+            raise ValueError("string 2 bool error!")
+
+    @staticmethod
+    def get_args_info(args, argv):
+        """get str args info.
+        ---
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--test_transform', type=str2bool, default='false')
+
+        args, argv = parser.parse_known_args()
+        args_info = get_args_info(args, argv)
+
+        return args, args_info
+        """
+        args_info = "\n    ".join(
+            ["==parsed args:"] + ['%s: %s' % x for x in vars(args).items()])
+        argv_info = "\n    ".join(
+            ["==unknown args:"] + (argv if argv else ["None"]))
+
+        return "\n  ".join(["==[ARGS PARSER]", args_info, argv_info])
+
+
+# ===================================================================
+# test functions
+def add1(x):
+    x = x + 1
+    return x
+
+
 if __name__ == '__main__':
-    email = Email()
-    email.send_email("hello")
+    # l = range(1000000)
+    # a1 = MultiProcess.map(add1, l)
+    # a2 = MultiProcess.map(add1, l, single=True)
+    #
+    # print(pd.Series([x[0] == x[1] for x in zip(a1, a2)]).value_counts())
+    UnsortTool.get_var_size(90)
