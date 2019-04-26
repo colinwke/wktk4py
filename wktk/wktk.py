@@ -45,7 +45,7 @@ class Timestamp(object):
 
     def cut(self, info=None):
         current = time.time()
-        run_time = time.time() - self._cstart
+        run_time = current - self._cstart
         self._cstart = current
 
         msg = "Timestamp cut: %s, %.2fs" % (time.ctime(), run_time)
@@ -188,24 +188,24 @@ class MultiProcess:
 
     @staticmethod
     def _map_pieces(func, pieces, *args, **kwargs):
-        try:
-            from tqdm import tqdm
-            pieces = tqdm(pieces)
-        except ImportError as e:
-            print(e)
-
         return [func(x, *args, **kwargs) for x in pieces]
 
     @staticmethod
-    def map(func, data_list, num_core=None, single=False, *args, **kwargs):
+    def map(func, data_list, num_core=None, single=False, tqdm=True, *args, **kwargs):
         if single:  # single core test
             print("=" * 4 + "[Multiprocess single test!]" + "=" * 4)
+            if tqdm: data_list = Tqdm(data_list)
             return MultiProcess._map_pieces(func, data_list, *args, **kwargs)
 
         num_core = MultiProcess._get_process_num_core(num_core)
 
         print(("=" * 4 + "[split multi-process, core: %d]" + "=" * 4) % num_core)
         data_list = np.array_split(data_list, num_core)
+
+        # add tqdm for tail data block
+        if tqdm: data_list = [x if i != num_core - 1 else Tqdm(x)
+                              for i, x in enumerate(data_list)]
+
         with multiprocessing.Pool(num_core) as pool:
             data_list = list(itertools.chain.from_iterable(
                 pool.map(functools.partial(
@@ -413,6 +413,19 @@ class PdUtils():
     def rename_col(df, old_col, new_col):
         return df.rename(columns={old_col: new_col})
 
+    @staticmethod
+    def sort_df_by_str_len(df, str_col, ascending=True):
+        """https://stackoverflow.com/a/46177383/6494418"""
+        df['s8t1r0l0e7n'] = df[str_col].str.len()
+        return df.sort_values(
+            by=['s8t1r0l0e7n', str_col],
+            ascending=ascending).drop('s8t1r0l0e7n', axis=1)
+
+    @staticmethod
+    def keep_duplicates(df, col):
+        """https://stackoverflow.com/a/33381246/6494418"""
+        return df[df[col].duplicated(keep=False)]
+
 
 # ==========================================================
 
@@ -558,6 +571,36 @@ class ArgsUtils:
             ["==unknown args:"] + (argv if argv else ["None"]))
 
         return "\n  ".join(["==[ARGS PARSER]", args_info, argv_info])
+
+
+class Tqdm:
+    def __init__(self, iterable, num_marker=10):
+        self.iterable = iterable
+        self.len = len(self.iterable)
+        self.num_marker = num_marker
+        self.num_gap = int(self.len / self.num_marker)
+        # time
+        self.start_time = time.time()
+        self.cut_time = self.start_time
+        # print format
+        len_1, len_2 = len(str(self.num_marker)), len(str(self.len))
+        self.format_print = "[tqdm] (%{}d/{} | %{}d/{}) %fs".format(
+            len_1, self.num_marker, len_2, self.len)
+
+    def cut(self):
+        current = time.time()
+        run_time = current - self.cut_time
+        self.cut_time = current
+        return run_time
+
+    def __iter__(self):
+        n = 0
+        for obj in self.iterable:
+            n += 1
+            if n % self.num_gap == 0:
+                print(self.format_print % (n // self.num_gap, n, self.cut()))
+            yield obj
+        print("[tqdm] end! runtime: %fs" % (time.time() - self.start_time))
 
 
 # ===================================================================

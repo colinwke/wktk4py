@@ -55,8 +55,36 @@ def is_only_chs(x):
     return re.search(r"[a-zA-Z0-9]", x) is None
 
 
-if __name__ == '__main__':
-    a = ["你是猪吗", "你是1头猪吗?", "你是a头猪吗?"]
+def filter_parentheses_content(x):
+    """remove content of (*)."""
+    idx_l, idx_r = x.find('('), x.rfind(')')
+    if idx_l != -1 and idx_r != -1:
+        x = x[:idx_l] + x[idx_r + 1:]
+    return x
 
-    for i in a:
-        print(is_only_chs(i))
+
+def get_parentheses_content(x):
+    """get content of (*)."""
+    idx_l, idx_r = x.find('('), x.rfind(')')
+    if idx_l != -1 and idx_r != -1:
+        x = x[idx_l + 1:idx_r]
+    return x
+
+
+if __name__ == '__main__':
+    l = """蓬莱一品民俗家庭公寓
+蓬莱金萍渔家乐
+蓬莱凯莱宾馆
+速8酒店(蓬莱蓬莱阁登州路店)
+蓬莱仙境姐姐家家庭驿站
+蓬莱秋实家庭公寓
+烟台阳光味道特色民宿
+烟台琦秀度假公寓(沿河街分店)
+烟台无限风光在木石99公寓(观音苑分店)
+烟台仙境爱侣行汐•遇公寓(海洋极地世界分店)
+"""
+    l = l.split()
+    print(l)
+
+    for i in l:
+        print(filter_parentheses_content(i))
