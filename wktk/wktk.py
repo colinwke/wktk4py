@@ -193,13 +193,13 @@ class MultiProcess:
     @staticmethod
     def map(func, data_list, num_core=None, single=False, tqdm=True, *args, **kwargs):
         if single:  # single core test
-            print("=" * 4 + "[Multiprocess single test!]" + "=" * 4)
+            print("[MultiProcess] single test!")
             if tqdm: data_list = Tqdm(data_list)
             return MultiProcess._map_pieces(func, data_list, *args, **kwargs)
 
         num_core = MultiProcess._get_process_num_core(num_core)
 
-        print(("=" * 4 + "[split multi-process, core: %d]" + "=" * 4) % num_core)
+        print("[MultiProcess] use process core: %d" % num_core)
         data_list = np.array_split(data_list, num_core)
 
         # add tqdm for tail data block
