@@ -375,6 +375,7 @@ class UnsortTool:
 
     @staticmethod
     def get_root_var_name(var):
+        import inspect
         """https://stackoverflow.com/a/40536047/6494418"""
         for fi in reversed(inspect.stack()):
             names = [var_name for var_name, var_val in fi.frame.f_locals.items() if var_val is var]
@@ -434,6 +435,20 @@ class FileUtils:
     def create_if_not_exist_dir(path):
         """https://stackoverflow.com/a/12517490/6494418"""
         os.makedirs(path.dirname(path), exist_ok=True)
+
+    @staticmethod
+    def print_list_dir(dir):
+        print("=" * 64)
+        print("[PRINT LIST DIR] %s" % dir)
+        print("=" * 64)
+        for root, dirs, files in os.walk(dir):
+            level = root.replace(dir, '').count(os.sep)
+            indent = '| ' * level
+            print('{}{} \\'.format(indent, os.path.basename(root)))
+            subindent = '| ' * (level + 1)
+            for f in files:
+                print('{}{}'.format(subindent, f))
+        print("=" * 64)
 
 
 # ==========================================================
@@ -549,7 +564,7 @@ class ArgsUtils:
         """string true, false to bool True, False."""
         value = value.lower()
         if value in ('true', 'false'):
-            return v_lower == 'true'
+            return value == 'true'
         else:
             raise ValueError("string 2 bool error!")
 
@@ -603,11 +618,51 @@ class Tqdm:
         print("[tqdm] end! runtime: %fs" % (time.time() - self.start_time))
 
 
+class AttributeDict(dict):
+
+    def __getattr__(self, name):
+        """https://stackoverflow.com/a/1639632/6494418"""
+        return self[name] if not isinstance(self[name], dict) \
+            else AttributeDict(self[name])
+
+    def __str__(self):
+        """https://stackoverflow.com/a/3314411/6494418"""
+        import json
+        return json.dumps(self, sort_keys=False, indent=2)
+
+
+class Shell:
+    @staticmethod
+    def shell(command):
+        import subprocess
+        """run linux command with python."""
+        try:
+            result = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)
+            result = "[SHELL] success! run cmd `%s`\n%s" % (command, result.decode("utf-8"))
+        except Exception as e:
+            result = "[SHELL] failure! run cmd `%s`\n%s" % (command, str(e))
+
+        return result
+
+    @staticmethod
+    def rm_hdfs_dir(hdfs_dir):
+        ret = Shell.shell("hadoop fs -rm -R -skipTrash %s" % hdfs_dir)
+        print(ret)
+
+    @staticmethod
+    def mk_hdfs_dir(hdfs_dir):
+        ret = Shell.shell("hadoop fs -mkdir -p %s" % hdfs_dir)
+        print(ret)
+
+    @staticmethod
+    def init_hdfs_dir(hdfs_dir):
+        Shell.rm_hdfs_dir(hdfs_dir)
+        Shell.mk_hdfs_dir(hdfs_dir)
+
+
+
+
 # ===================================================================
-# test functions
-def add1(x):
-    x = x + 1
-    return x
 
 
 if __name__ == '__main__':
