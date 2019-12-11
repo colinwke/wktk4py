@@ -1,3 +1,9 @@
+# pycharm
+.idea/**/*
+data/**/*
+out/**/*
+_*/**/*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -8,50 +14,50 @@ __pycache__/
 # pycharm
 .idea/
 
-# # Distribution / packaging
-# .Python
-# env/
-# bin/
-# build/
-# develop-eggs/
-# dist/
-# eggs/
-# lib/
-# lib64/
-# parts/
-# sdist/
-# var/
-# *.egg-info/
-# .installed.cfg
-# *.egg
+# Distribution / packaging
+.Python
+env/
+bin/
+build/
+develop-eggs/
+dist/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# # Installer logs
-# pip-log.txt
-# pip-delete-this-directory.txt
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
 
-# # Unit test / coverage reports
-# htmlcov/
-# .tox/
-# .coverage
-# .cache
-# nosetests.xml
-# coverage.xml
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
 
-# # Translations
-# *.mo
+# Translations
+*.mo
 
-# # Mr Developer
-# .mr.developer.cfg
-# .project
-# .pydevproject
+# Mr Developer
+.mr.developer.cfg
+.project
+.pydevproject
 
-# # Rope
-# .ropeproject
+# Rope
+.ropeproject
 
-# # Django stuff:
-# *.log
-# *.pot
+# Django stuff:
+*.log
+*.pot
 
-# # Sphinx documentation
-# docs/_build/
+# Sphinx documentation
+docs/_build/
 
